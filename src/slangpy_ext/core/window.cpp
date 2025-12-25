@@ -100,4 +100,13 @@ SGL_PY_EXPORT(core_window)
         nb::arg().none(),
         D(Window, on_drop_files)
     );
+
+#ifdef __ANDROID__
+    window.def(
+        "set_android_native_window",
+        &Window::set_android_native_window,
+        "native_window_ptr"_a,
+        "Set the Android native window from a pointer value (uintptr_t)"
+    );
+#endif
 }

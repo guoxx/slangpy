@@ -107,6 +107,13 @@ public:
     CursorMode cursor_mode() const { return m_cursor_mode; }
     void set_cursor_mode(CursorMode mode);
 
+#ifdef __ANDROID__
+    /// Set the Android native window from a pointer value.
+    /// This must be called after Window construction on Android.
+    /// @param native_window_ptr Pointer to ANativeWindow as uintptr_t
+    void set_android_native_window(uintptr_t native_window_ptr);
+#endif
+
     // events
 
     using ResizeCallback = std::function<void(uint32_t /* width */, uint32_t /* height */)>;
@@ -181,6 +188,10 @@ private:
     GamepadEventCallback m_on_gamepad_event;
     GamepadStateCallback m_on_gamepad_state;
     DropFilesCallback m_on_drop_files;
+
+#ifdef __ANDROID__
+    ::ANativeWindow* m_native_window{nullptr};
+#endif
 
     friend struct EventHandlers;
 };

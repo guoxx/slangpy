@@ -258,6 +258,9 @@ Context::Context(ref<Device> device)
     io.IniFilename = nullptr;
 
     float scale_factor = platform::display_scale_factor();
+#if __ANDROID__
+    scale_factor *= 4.f;
+#endif
 
     // Load an embedded font.
     auto load_embedded_font = [&](const char* name, const char* path)

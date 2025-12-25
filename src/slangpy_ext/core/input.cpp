@@ -31,6 +31,28 @@ SGL_PY_EXPORT(core_input)
     nb::sgl_enum<MouseEventType>(m, "MouseEventType", D(MouseEventType));
 
     nb::class_<MouseEvent>(m, "MouseEvent", D(MouseEvent))
+        .def(
+            "__init__",
+            [](MouseEvent* self,
+               MouseEventType type,
+               nb::object pos_obj,
+               nb::object scroll_obj,
+               MouseButton button,
+               KeyModifierFlags mods) {
+                new (self) MouseEvent();
+                self->type = type;
+                self->pos = pos_obj.is_none() ? float2(0.f, 0.f) : nb::cast<float2>(pos_obj);
+                self->scroll = scroll_obj.is_none() ? float2(0.f, 0.f) : nb::cast<float2>(scroll_obj);
+                self->button = button;
+                self->mods = mods;
+            },
+            nb::arg("type"),
+            nb::arg("pos") = nb::none(),
+            nb::arg("scroll") = nb::none(),
+            nb::arg("button") = MouseButton::unknown,
+            nb::arg("mods") = KeyModifierFlags::none,
+            "Create a MouseEvent with specified parameters"
+        )
         .def_ro("type", &MouseEvent::type, D(MouseEvent, type))
         .def_ro("pos", &MouseEvent::pos, D(MouseEvent, pos))
         .def_ro("scroll", &MouseEvent::scroll, D(MouseEvent, scroll))

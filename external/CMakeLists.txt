@@ -33,15 +33,19 @@ add_subdirectory(fmt)
 
 # glfw
 
-set(GLFW_BUILD_EXAMPLES OFF)
-set(GLFW_BUILD_TESTS OFF)
-set(GLFW_BUILD_DOCS OFF)
-set(GLFW_INSTALL OFF)
-add_subdirectory(glfw)
+if(NOT SGL_ANDROID)
+    set(GLFW_BUILD_EXAMPLES OFF)
+    set(GLFW_BUILD_TESTS OFF)
+    set(GLFW_BUILD_DOCS OFF)
+    set(GLFW_INSTALL OFF)
+    add_subdirectory(glfw)
+endif()
 
 # tevclient
 
-add_subdirectory(tevclient EXCLUDE_FROM_ALL)
+if(NOT SGL_ANDROID)
+    add_subdirectory(tevclient EXCLUDE_FROM_ALL)
+endif()
 
 # nanobind
 
