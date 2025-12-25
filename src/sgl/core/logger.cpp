@@ -11,6 +11,10 @@
 #include <array>
 #include <iostream>
 
+#ifdef __ANDROID__
+#include <android/log.h>
+#endif
+
 #if SGL_WINDOWS
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -47,6 +51,42 @@ ConsoleLoggerOutput::ConsoleLoggerOutput(bool colored)
 
 void ConsoleLoggerOutput::write(LogLevel level, const std::string_view module, const std::string_view msg)
 {
+#ifdef __ANDROID__
+    // On Android, use logcat instead of stdout/stderr
+    android_LogPriority priority = ANDROID_LOG_INFO;
+    switch (level) {
+    case LogLevel::none:
+        priority = ANDROID_LOG_INFO;
+        break;
+    case LogLevel::debug:
+        priority = ANDROID_LOG_DEBUG;
+        break;
+    case LogLevel::info:
+        priority = ANDROID_LOG_INFO;
+        break;
+    case LogLevel::warn:
+        priority = ANDROID_LOG_WARN;
+        break;
+    case LogLevel::error:
+        priority = ANDROID_LOG_ERROR;
+        break;
+    case LogLevel::fatal:
+        priority = ANDROID_LOG_FATAL;
+        break;
+    }
+
+    std::string_view level_str = s_level_str[static_cast<int>(level)];
+
+    if (level == LogLevel::none) {
+        __android_log_print(priority, "slangpy", "%s", msg.data());
+    } else {
+        if (module.empty())
+            __android_log_print(priority, "slangpy", "[%s] %s", level_str.data(), msg.data());
+        else
+            __android_log_print(priority, "slangpy", "[%s] (%s) %s", level_str.data(), module.data(), msg.data());
+    }
+#else
+    // Non-Android platforms: use stdout/stderr
     std::string_view level_str = s_level_str[static_cast<int>(level)];
     fmt::terminal_color color = s_level_color[static_cast<int>(level)];
 
@@ -87,6 +127,7 @@ void ConsoleLoggerOutput::write(LogLevel level, const std::string_view module, c
     } else {
         write_impl();
     }
+#endif
 }
 
 std::string ConsoleLoggerOutput::to_string() const

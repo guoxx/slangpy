@@ -9,12 +9,16 @@
 
 #include "sgl/device/resource.h"
 
+#ifndef __ANDROID__
 #include <tevclient.h>
+#endif
 
 #include <atomic>
 #include <semaphore>
 
 namespace sgl::tev {
+
+#ifndef __ANDROID__
 
 class ClientPool {
 public:
@@ -202,5 +206,32 @@ void show_async(const Texture* texture, std::string name, std::string host, uint
     ref<Bitmap> bitmap = texture->to_bitmap();
     return show_async(bitmap, name, host, port, max_retries);
 }
+
+#else
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
+
+bool show(const Bitmap* bitmap, std::string name, std::string host, uint16_t port, uint32_t max_retries)
+{
+    return false;
+}
+
+bool show(const Texture* texture, std::string name, std::string host, uint16_t port, uint32_t max_retries)
+{
+    return false;
+}
+
+void show_async(const Bitmap* bitmap, std::string name, std::string host, uint16_t port, uint32_t max_retries)
+{
+}
+
+void show_async(const Texture* texture, std::string name, std::string host, uint16_t port, uint32_t max_retries)
+{
+}
+
+#pragma clang diagnostic pop
+
+#endif
 
 } // namespace sgl::tev
