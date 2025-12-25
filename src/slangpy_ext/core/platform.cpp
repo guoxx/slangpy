@@ -4,6 +4,10 @@
 
 #include "sgl/core/platform.h"
 
+#ifdef __ANDROID__
+#include <android/native_window.h>
+#endif
+
 SGL_PY_EXPORT(core_platform)
 {
     using namespace sgl::platform;
@@ -17,6 +21,13 @@ SGL_PY_EXPORT(core_platform)
                 new (self) sgl::WindowHandle{reinterpret_cast<HWND>(hwnd)};
             },
             "hwnd"_a
+        )
+#elif __ANDROID__
+        .def(
+            "__init__",
+            [](sgl::WindowHandle* self, uintptr_t native_window)
+            { new (self) sgl::WindowHandle{reinterpret_cast<::ANativeWindow*>(native_window)}; },
+            "native_window"_a
         )
 #elif SGL_LINUX
         .def(

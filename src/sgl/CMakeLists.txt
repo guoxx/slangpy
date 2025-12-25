@@ -66,6 +66,7 @@ target_sources(sgl PRIVATE
     core/traits.h
     core/type_utils.h
     core/window.cpp
+    core/window_android.cpp
     core/window.h
 
     device/agility_sdk.h
@@ -328,6 +329,7 @@ target_compile_definitions(sgl
         $<$<PLATFORM_ID:Windows>:IMGUI_API=__declspec\(dllexport\)>
         $<$<PLATFORM_ID:Linux>:IMGUI_API=__attribute__\(\(visibility\("default"\)\)\)>
         $<$<PLATFORM_ID:Darwin>:IMGUI_API=__attribute__\(\(visibility\("default"\)\)\)>
+        $<$<PLATFORM_ID:Android>:IMGUI_API=__attribute__\(\(visibility\("default"\)\)\)>
         # Linux.
         $<$<PLATFORM_ID:Linux>:__USE_LARGEFILE64>
         SGL_PROJECT_DIR="${SGL_PROJECT_DIR}"
@@ -366,8 +368,8 @@ target_link_libraries(sgl
         sgl_data
     PRIVATE
         git_version
-        glfw
-        tevclient
+        $<$<NOT:$<PLATFORM_ID:Android>>:glfw>
+        $<$<NOT:$<PLATFORM_ID:Android>>:tevclient>
         lmdb
         $<$<BOOL:${SGL_HAS_D3D12}>:d3d12>
         $<$<BOOL:${SGL_HAS_LIBPNG}>:PNG::PNG>
@@ -384,6 +386,9 @@ target_link_libraries(sgl
         # $<$<PLATFORM_ID:Linux>:gtk3>
         # macOS system libraries.
         $<$<PLATFORM_ID:Darwin>:sgl_macos_deps>
+        # Android system libraries.
+        $<$<PLATFORM_ID:Android>:log>
+        $<$<PLATFORM_ID:Android>:android>
 )
 
 set_target_properties(sgl PROPERTIES

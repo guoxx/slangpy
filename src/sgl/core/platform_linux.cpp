@@ -210,6 +210,7 @@ size_t page_size()
 
 MemoryStats memory_stats()
 {
+#ifndef __ANDROID__
     MemoryStats stats = {};
     std::ifstream stat_file("/proc/self/stat");
     if (stat_file) {
@@ -224,6 +225,9 @@ MemoryStats memory_stats()
         }
     }
     return stats;
+#else
+    return {};
+#endif
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -280,15 +284,21 @@ void print_to_debug_window(const char* str)
 
 StackTrace backtrace(size_t skip_frames)
 {
+#ifndef __ANDROID__
     uintptr_t raw_trace[1024];
     int count = ::backtrace(reinterpret_cast<void**>(raw_trace), 1024);
     if (skip_frames >= count)
         return {};
     return StackTrace{raw_trace + skip_frames, raw_trace + skip_frames + (count - skip_frames)};
+#else
+    (void)skip_frames;
+    return {};
+#endif
 }
 
 ResolvedStackTrace resolve_stacktrace(std::span<const StackFrame> trace)
 {
+#ifndef __ANDROID__
     auto demangle = [](const char* name)
     {
         int status = 0;
@@ -322,6 +332,10 @@ ResolvedStackTrace resolve_stacktrace(std::span<const StackFrame> trace)
     free(info);
 
     return resolved_trace;
+#else
+    (void)trace;
+    return {};
+#endif
 }
 
 } // namespace sgl::platform
