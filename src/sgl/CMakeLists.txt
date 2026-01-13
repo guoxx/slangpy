@@ -369,7 +369,7 @@ target_link_libraries(sgl
     PRIVATE
         git_version
         $<$<NOT:$<PLATFORM_ID:Android>>:glfw>
-        $<$<NOT:$<PLATFORM_ID:Android>>:tevclient>
+        tevclient
         lmdb
         $<$<BOOL:${SGL_HAS_D3D12}>:d3d12>
         $<$<BOOL:${SGL_HAS_LIBPNG}>:PNG::PNG>

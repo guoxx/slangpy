@@ -43,9 +43,7 @@ endif()
 
 # tevclient
 
-if(NOT SGL_ANDROID)
-    add_subdirectory(tevclient EXCLUDE_FROM_ALL)
-endif()
+add_subdirectory(tevclient EXCLUDE_FROM_ALL)
 
 # nanobind
 
