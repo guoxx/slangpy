@@ -28,6 +28,8 @@ elif sys.platform.startswith("linux"):
     PLATFORM = "linux"
 elif sys.platform.startswith("darwin"):
     PLATFORM = "macos"
+elif sys.platform.startswith("android"):
+    PLATFORM = "android"
 else:
     raise Exception(f"Unsupported platform: {sys.platform}")
 
@@ -46,6 +48,18 @@ elif PLATFORM == "linux":
     MSVC_PLAT_SPEC = None
 elif PLATFORM == "macos":
     CMAKE_PRESET = "macos-arm64-clang"
+    MSVC_PLAT_SPEC = None
+elif PLATFORM == "android":
+    android_abi = os.environ.get("ANDROID_ABI")
+    if android_abi == "arm64-v8a":
+        CMAKE_PRESET = "android-arm64"
+    elif android_abi == "x86_64":
+        CMAKE_PRESET = "android-x86_64"
+    else:
+        raise RuntimeError(
+            "Unsupported ANDROID_ABI for slangpy build: "
+            f"{android_abi} (expected 'arm64-v8a' or 'x86_64')"
+        )
     MSVC_PLAT_SPEC = None
 else:
     raise RuntimeError(f"Unsupported platform: {PLATFORM}")
@@ -94,7 +108,6 @@ class CMakeBuild(build_ext):
             "-B",
             build_dir,
             f"-DCMAKE_DEFAULT_BUILD_TYPE={CMAKE_CONFIG}",
-            f"-DPython_ROOT_DIR:PATH={sys.prefix}",
             f"-DPython_FIND_REGISTRY:STRING=NEVER",
             f"-DCMAKE_INSTALL_PREFIX={extdir}",
             f"-DCMAKE_INSTALL_LIBDIR=.",
@@ -104,6 +117,46 @@ class CMakeBuild(build_ext):
             "-DSGL_BUILD_EXAMPLES=OFF",
             "-DSGL_BUILD_TESTS=OFF",
         ]
+
+        if PLATFORM == "android":
+            toolchain_file = os.environ.get("CMAKE_TOOLCHAIN_FILE")
+            assert toolchain_file, "CMAKE_TOOLCHAIN_FILE environment variable is not set!"
+
+            python_prefix = (Path(toolchain_file).parent / "python" / "prefix").resolve()
+
+            # Explicitly find headers and library to bypass FindPython flakiness on Android
+            include_dirs = list(python_prefix.glob("include/python3.*"))
+            cmake_args.append(f"-DPython_INCLUDE_DIR={include_dirs[0]}")
+
+            # Check for shared library first, then static
+            libs = list(python_prefix.glob("lib/libpython3.*.so"))
+            cmake_args.append(f"-DPython_LIBRARY={libs[0]}")
+        else:
+            cmake_args.insert(5, f"-DPython_ROOT_DIR:PATH={sys.prefix}")
+
+        if PLATFORM == "android":
+            slang_root = (SOURCE_DIR.parent / "slang").resolve()
+            android_abi = os.environ.get("ANDROID_ABI")
+
+            cmake_args += [
+                "-DSGL_LOCAL_SLANG=ON",
+                f"-DSGL_LOCAL_SLANG_DIR={slang_root}",
+                f"-DSGL_LOCAL_SLANG_BUILD_DIR=build-android-{android_abi}/{CMAKE_CONFIG}",
+            ]
+
+        is_wsl = os.path.exists("/proc/sys/fs/binfmt_misc/WSLInterop")
+        if is_wsl:
+            print("[setup.py] WSL detected, attempting path mapping for debug info...")
+            try:
+                wsl_src = str(SOURCE_DIR)
+                win_src = subprocess.check_output(["wslpath", "-m", wsl_src]).decode("utf-8").strip() if shutil.which("wslpath") else wsl_src
+                print(f"[setup.py] Path mapping: '{wsl_src}' -> '{win_src}'")
+                if win_src != wsl_src:
+                    flag = f"-fdebug-prefix-map={wsl_src}={win_src}"
+                    cmake_args += [f"-DCMAKE_{x}_FLAGS={flag}" for x in ["C", "CXX"]]
+                    print(f"[setup.py] Added build flag: {flag}")
+            except Exception as e:
+                print(f"[setup.py] Failed to setup WSL path mapping: {e}")
 
         if BUILD_RELEASE_WHEEL:
             cmake_args += [
