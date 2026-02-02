@@ -132,6 +132,35 @@
             "inherits": "base"
         },
         {
+            "name": "android-base",
+            "description": "Base Android configuration (toolchain provided by cibuildwheel).",
+            "hidden": true,
+            "generator": "Ninja Multi-Config",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "NANOTHREAD_NATIVE_FLAGS": "",
+                "SLANG_RHI_HAS_D3D11": "OFF",
+                "SLANG_RHI_HAS_D3D12": "OFF",
+                "SLANG_RHI_HAS_VULKAN": "ON",
+                "SLANG_RHI_HAS_METAL": "OFF",
+                "SLANG_RHI_HAS_CUDA": "OFF",
+                "SLANG_RHI_HAS_WGPU": "OFF"
+            },
+            "binaryDir": "${sourceDir}/build/${presetName}"
+        },
+        {
+            "name": "android-arm64",
+            "inherits": "android-base",
+            "cacheVariables": {
+            }
+        },
+        {
+            "name": "android-x86_64",
+            "inherits": "android-base",
+            "cacheVariables": {
+            }
+        },
+        {
             "name": "linux-clang-base",
             "description": "Base Linux/clang configuration.",
             "hidden": true,
