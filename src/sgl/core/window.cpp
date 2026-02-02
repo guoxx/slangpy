@@ -4,6 +4,8 @@
 #include "sgl/core/config.h"
 #include "sgl/core/error.h"
 
+#ifndef __ANDROID__
+
 #if SGL_HAS_VULKAN
 #define GLFW_INCLUDE_VULKAN
 #endif
@@ -635,3 +637,5 @@ void Window::handle_drop_files(std::span<const char*> files)
 }
 
 } // namespace sgl
+
+#endif

@@ -85,6 +85,8 @@ public:
 
 #if SGL_WINDOWS
         window_handle = window ? window->window_handle().hwnd : nullptr;
+#elif __ANDROID__
+        window_handle = nullptr;  // RenderDoc not supported on Android
 #elif SGL_LINUX
         window_handle = window ? (void*)uintptr_t(window->window_handle().xwindow) : nullptr;
 #else

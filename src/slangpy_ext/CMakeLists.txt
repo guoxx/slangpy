@@ -88,6 +88,10 @@ set_target_properties(slangpy_ext PROPERTIES
     PDB_OUTPUT_DIRECTORY_RELWITHDEBINFO ${SLANGPY_PACKAGE_DIR}
 )
 
+if (SGL_ANDROID)
+    target_link_libraries(slangpy_ext PRIVATE ${Python_LIBRARY} android log)
+endif()
+
 # Write a .build_dir file to the package directory.
 # This is used by __init__.py to setup the correct DLL path in development mode.
 add_custom_target(
@@ -97,53 +101,55 @@ add_custom_target(
 
 add_dependencies(slangpy_ext slangpy_ext_build_dir)
 
-# Post processes (and overwrites) a stub file.
-# Note: The use of cached variable allows this to be called from other CMake scripts.
-set(SGL_POST_PROCESS_STUB_PY ${CMAKE_CURRENT_LIST_DIR}/../../tools/postprocess_stub.py CACHE INTERNAL "")
-function(postprocess_stub stub_file args)
-    add_custom_command(
-        APPEND
-        OUTPUT ${stub_file}
-        COMMAND ${Python_EXECUTABLE} ${SGL_POST_PROCESS_STUB_PY} --file=${stub_file} ${args} --quiet
-        COMMENT "Post-processing stub ${stub_file}"
-    )
-endfunction()
+if(NOT SGL_ANDROID)
+    # Post processes (and overwrites) a stub file.
+    # Note: The use of cached variable allows this to be called from other CMake scripts.
+    set(SGL_POST_PROCESS_STUB_PY ${CMAKE_CURRENT_LIST_DIR}/../../tools/postprocess_stub.py CACHE INTERNAL "")
+    function(postprocess_stub stub_file args)
+        add_custom_command(
+            APPEND
+            OUTPUT ${stub_file}
+            COMMAND ${Python_EXECUTABLE} ${SGL_POST_PROCESS_STUB_PY} --file=${stub_file} ${args} --quiet
+            COMMENT "Post-processing stub ${stub_file}"
+        )
+    endfunction()
 
-# Generate main stub file.
-nanobind_add_stub(
-    slangpy_stub
-    MODULE slangpy
-    PYTHON_PATH ${SLANGPY_PACKAGE_DIR}/..
-    OUTPUT ${SLANGPY_PACKAGE_DIR}/__init__.pyi
-    DEPENDS slangpy_ext ${SLANGPY_PACKAGE_DIR}/__init__.py
-    INCLUDE_PRIVATE # allow us to have functions/variables that start with _
-)
-
-# Post-process the main stub file.
-postprocess_stub(${SLANGPY_PACKAGE_DIR}/__init__.pyi "")
-
-# Install the main stub file.
-install(FILES ${SLANGPY_PACKAGE_DIR}/__init__.pyi DESTINATION ${CMAKE_INSTALL_BINDIR})
-
-# Generate submodule stub files.
-foreach(submodule IN ITEMS platform thread math ui tev renderdoc slangpy)
-    string(REPLACE "." "/" submodule_path ${submodule})
+    # Generate main stub file.
     nanobind_add_stub(
-        slangpy_${submodule}_stub
-        MODULE slangpy.${submodule}
+        slangpy_stub
+        MODULE slangpy
         PYTHON_PATH ${SLANGPY_PACKAGE_DIR}/..
-        OUTPUT ${SLANGPY_PACKAGE_DIR}/${submodule_path}/__init__.pyi
-        DEPENDS slangpy_ext ${SLANGPY_PACKAGE_DIR}/${submodule_path}/__init__.py
+        OUTPUT ${SLANGPY_PACKAGE_DIR}/__init__.pyi
+        DEPENDS slangpy_ext ${SLANGPY_PACKAGE_DIR}/__init__.py
         INCLUDE_PRIVATE # allow us to have functions/variables that start with _
     )
 
-    # Post-process the submodule stub file.
-    postprocess_stub(${SLANGPY_PACKAGE_DIR}/${submodule_path}/__init__.pyi "--submodule")
+    # Post-process the main stub file.
+    postprocess_stub(${SLANGPY_PACKAGE_DIR}/__init__.pyi "")
 
-    # Install the submodule stub file.
-    install(FILES ${SLANGPY_PACKAGE_DIR}/${submodule_path}/__init__.pyi DESTINATION ${CMAKE_INSTALL_BINDIR}/${submodule_path})
+    # Install the main stub file.
+    install(FILES ${SLANGPY_PACKAGE_DIR}/__init__.pyi DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-endforeach()
+    # Generate submodule stub files.
+    foreach(submodule IN ITEMS platform thread math ui tev renderdoc slangpy)
+        string(REPLACE "." "/" submodule_path ${submodule})
+        nanobind_add_stub(
+            slangpy_${submodule}_stub
+            MODULE slangpy.${submodule}
+            PYTHON_PATH ${SLANGPY_PACKAGE_DIR}/..
+            OUTPUT ${SLANGPY_PACKAGE_DIR}/${submodule_path}/__init__.pyi
+            DEPENDS slangpy_ext ${SLANGPY_PACKAGE_DIR}/${submodule_path}/__init__.py
+            INCLUDE_PRIVATE # allow us to have functions/variables that start with _
+        )
+
+        # Post-process the submodule stub file.
+        postprocess_stub(${SLANGPY_PACKAGE_DIR}/${submodule_path}/__init__.pyi "--submodule")
+
+        # Install the submodule stub file.
+        install(FILES ${SLANGPY_PACKAGE_DIR}/${submodule_path}/__init__.pyi DESTINATION ${CMAKE_INSTALL_BINDIR}/${submodule_path})
+
+    endforeach()
+endif()
 
 if(SGL_MASTER_PROJECT)
     set(MKDOC_ARGS "")
