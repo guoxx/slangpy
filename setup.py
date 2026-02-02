@@ -28,6 +28,8 @@ elif sys.platform.startswith("linux"):
     PLATFORM = "linux"
 elif sys.platform.startswith("darwin"):
     PLATFORM = "macos"
+elif sys.platform.startswith("android"):
+    PLATFORM = "android"
 else:
     raise Exception(f"Unsupported platform: {sys.platform}")
 
@@ -46,6 +48,18 @@ elif PLATFORM == "linux":
     MSVC_PLAT_SPEC = None
 elif PLATFORM == "macos":
     CMAKE_PRESET = "macos-arm64-clang"
+    MSVC_PLAT_SPEC = None
+elif PLATFORM == "android":
+    android_abi = os.environ.get("ANDROID_ABI")
+    if android_abi == "arm64-v8a":
+        CMAKE_PRESET = "android-arm64"
+    elif android_abi == "x86_64":
+        CMAKE_PRESET = "android-x86_64"
+    else:
+        raise RuntimeError(
+            "Unsupported ANDROID_ABI for slangpy build: "
+            f"{android_abi} (expected 'arm64-v8a' or 'x86_64')"
+        )
     MSVC_PLAT_SPEC = None
 else:
     raise RuntimeError(f"Unsupported platform: {PLATFORM}")
@@ -105,6 +119,9 @@ class CMakeBuild(build_ext):
             "-DSGL_BUILD_TESTS=OFF",
         ]
 
+        if PLATFORM == "android":
+            self._configure_android_build(cmake_args, env)
+
         if BUILD_RELEASE_WHEEL:
             cmake_args += [
                 "-DSGL_PROJECT_DIR=",
@@ -129,6 +146,77 @@ class CMakeBuild(build_ext):
             path = extdir / file
             if path.exists():
                 os.remove(path)
+
+    def _configure_android_build(self, cmake_args: list, env: dict) -> None:
+        """Configure CMake arguments and environment for Android builds."""
+        # Remove Python_ROOT_DIR (points to host system, not suitable for cross-compile)
+        cmake_args[:] = [arg for arg in cmake_args if not arg.startswith("-DPython_ROOT_DIR")]
+
+        # Python include/library configuration for Android
+        toolchain_file = os.environ.get("CMAKE_TOOLCHAIN_FILE")
+        assert toolchain_file, "CMAKE_TOOLCHAIN_FILE environment variable is not set!"
+
+        python_prefix = (Path(toolchain_file).parent / "python" / "prefix").resolve()
+
+        # Explicitly find headers and library to bypass FindPython flakiness on Android
+        include_dirs = list(python_prefix.glob("include/python3.*"))
+        cmake_args.append(f"-DPython_INCLUDE_DIR={include_dirs[0]}")
+
+        # Check for shared library first, then static
+        libs = list(python_prefix.glob("lib/libpython3.*.so"))
+        cmake_args.append(f"-DPython_LIBRARY={libs[0]}")
+
+        # Local Slang configuration
+        slang_root = (SOURCE_DIR.parent / "slang").resolve()
+        android_abi = os.environ.get("ANDROID_ABI")
+
+        cmake_args += [
+            "-DSGL_LOCAL_SLANG=ON",
+            f"-DSGL_LOCAL_SLANG_DIR={slang_root}",
+            f"-DSGL_LOCAL_SLANG_BUILD_DIR=build-android-{android_abi}/{CMAKE_CONFIG}",
+        ]
+
+        # Debug flags sanitization
+        if CMAKE_CONFIG == "Debug":
+
+            def _sanitize_android_debug_flags(flags: str) -> str:
+                tokens = flags.split()
+                tokens = [t for t in tokens if t != "-DNDEBUG"]
+                tokens = ["-O0" if t == "-O3" else t for t in tokens]
+                return " ".join(tokens)
+
+            before_cflags = env.get("CFLAGS", "")
+            before_cxxflags = env.get("CXXFLAGS", "")
+            env["CFLAGS"] = _sanitize_android_debug_flags(before_cflags)
+            env["CXXFLAGS"] = _sanitize_android_debug_flags(before_cxxflags)
+            if env["CFLAGS"] != before_cflags:
+                print(
+                    f"[setup.py] Android Debug: sanitized CFLAGS: '{before_cflags}' -> '{env['CFLAGS']}'"
+                )
+            if env["CXXFLAGS"] != before_cxxflags:
+                print(
+                    f"[setup.py] Android Debug: sanitized CXXFLAGS: '{before_cxxflags}' -> '{env['CXXFLAGS']}'"
+                )
+
+        # WSL path mapping for debug info
+        is_wsl = shutil.which("wslpath") is not None
+        if is_wsl:
+            print("[setup.py] WSL detected, attempting path mapping for debug info...")
+            try:
+                wsl_src = str(SOURCE_DIR)
+                win_src = (
+                    subprocess.check_output(["wslpath", "-m", wsl_src]).decode("utf-8").strip()
+                    if shutil.which("wslpath")
+                    else wsl_src
+                )
+                print(f"[setup.py] Path mapping: '{wsl_src}' -> '{win_src}'")
+                if win_src != wsl_src:
+                    flag = f"-fdebug-prefix-map={wsl_src}={win_src}"
+                    env["CFLAGS"] = env.get("CFLAGS", "") + f" {flag}"
+                    env["CXXFLAGS"] = env.get("CXXFLAGS", "") + f" {flag}"
+                    print(f"[setup.py] Added to CFLAGS/CXXFLAGS: {flag}")
+            except Exception as e:
+                print(f"[setup.py] Failed to setup WSL path mapping: {e}")
 
 
 class CustomBuildPy(_build_py):
