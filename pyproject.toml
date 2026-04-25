@@ -76,3 +76,25 @@ reportInvalidTypeForm = "warning"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+
+# Android configuration (requires Linux/macOS or WSL2)
+[tool.cibuildwheel.android]
+build = "cp313-*"
+archs = ["arm64_v8a", "x86_64"]
+environment = {ANDROID_API_LEVEL = "33"}
+before-all = "python tools/android_build.py prepare"
+before-build = [
+    "pip install patchelf",
+    "python tools/android_build.py build_slang",
+]
+repair-wheel-command = "python tools/android_build.py repair_wheel -w {dest_dir} {wheel}"
+
+[[tool.cibuildwheel.overrides]]
+select = "*-android_arm64_v8a"
+inherit = { environment = "append" }
+environment = { ANDROID_ABI = "arm64-v8a" }
+
+[[tool.cibuildwheel.overrides]]
+select = "*-android_x86_64"
+inherit = { environment = "append" }
+environment = { ANDROID_ABI = "x86_64" }

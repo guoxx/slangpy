@@ -86,7 +86,11 @@ public:
 #if SGL_WINDOWS
         window_handle = window ? window->window_handle().hwnd : nullptr;
 #elif SGL_LINUX
+#if __ANDROID__
+        window_handle = nullptr;
+#else
         window_handle = window ? (void*)uintptr_t(window->window_handle().xwindow) : nullptr;
+#endif
 #else
         return false;
 #endif

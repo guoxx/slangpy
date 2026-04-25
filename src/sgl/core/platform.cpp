@@ -4,7 +4,9 @@
 #include "sgl/core/error.h"
 #include "sgl/core/format.h"
 
+#ifndef __ANDROID__
 #include <GLFW/glfw3.h>
+#endif
 
 #include <algorithm>
 #include <cstdio>
@@ -25,12 +27,16 @@ void set_python_active(bool active)
 
 float display_scale_factor()
 {
+#ifndef __ANDROID__
     float xscale = 1.f;
     float yscale = 1.f;
     GLFWmonitor* monitor = glfwGetPrimaryMonitor();
     if (monitor)
         glfwGetMonitorContentScale(monitor, &xscale, &yscale);
     return 0.5f * (xscale + yscale);
+#else
+    return 1.0f;
+#endif
 }
 
 // -------------------------------------------------------------------------------------------------

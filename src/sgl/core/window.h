@@ -172,6 +172,12 @@ public:
     CursorShape cursor_shape() const { return m_cursor_shape; }
     void set_cursor_shape(CursorShape shape);
 
+#ifdef __ANDROID__
+    /// Create an Android window from a native window pointer.
+    /// @param native_window_ptr Pointer to ANativeWindow as uintptr_t.
+    static ref<Window> create_android_window(uintptr_t native_window_ptr);
+#endif
+
     // events
 
     using ResizeCallback = std::function<void(uint32_t /* width */, uint32_t /* height */)>;
@@ -248,6 +254,10 @@ private:
     GamepadEventCallback m_on_gamepad_event;
     GamepadStateCallback m_on_gamepad_state;
     DropFilesCallback m_on_drop_files;
+
+#ifdef __ANDROID__
+    ::ANativeWindow* m_native_window{nullptr};
+#endif
 
     friend struct EventHandlers;
 };
