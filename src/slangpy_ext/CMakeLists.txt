@@ -97,6 +97,10 @@ set_target_properties(slangpy_ext PROPERTIES
     PDB_OUTPUT_DIRECTORY_RELWITHDEBINFO ${SLANGPY_PACKAGE_DIR}
 )
 
+if (SGL_ANDROID)
+    target_link_libraries(slangpy_ext PRIVATE Python::Python android log)
+endif()
+
 # Write a .build_dir file to the package directory.
 # This is used by __init__.py to setup the correct DLL path in development mode.
 add_custom_target(
@@ -118,41 +122,45 @@ function(postprocess_stub stub_file args)
     )
 endfunction()
 
-# Generate main stub file.
-nanobind_add_stub(
-    slangpy_stub
-    MODULE slangpy
-    PYTHON_PATH ${SLANGPY_PACKAGE_DIR}/..
-    OUTPUT ${SLANGPY_PACKAGE_DIR}/__init__.pyi
-    DEPENDS slangpy_ext ${SLANGPY_PACKAGE_DIR}/__init__.py
-    INCLUDE_PRIVATE # allow us to have functions/variables that start with _
-)
-
-# Post-process the main stub file.
-postprocess_stub(${SLANGPY_PACKAGE_DIR}/__init__.pyi "")
-
-# Install the main stub file.
-install(FILES ${SLANGPY_PACKAGE_DIR}/__init__.pyi DESTINATION ${CMAKE_INSTALL_BINDIR})
-
-# Generate submodule stub files.
-foreach(submodule IN ITEMS platform thread math ui tev crashpad renderdoc slangpy)
-    string(REPLACE "." "/" submodule_path ${submodule})
+# Stub generation requires importing the compiled module on the build host.
+# Skip on Android as the cross-compiled .so cannot be loaded on the host.
+if(NOT SGL_ANDROID)
+    # Generate main stub file.
     nanobind_add_stub(
-        slangpy_${submodule}_stub
-        MODULE slangpy.${submodule}
+        slangpy_stub
+        MODULE slangpy
         PYTHON_PATH ${SLANGPY_PACKAGE_DIR}/..
-        OUTPUT ${SLANGPY_PACKAGE_DIR}/${submodule_path}/__init__.pyi
-        DEPENDS slangpy_ext ${SLANGPY_PACKAGE_DIR}/${submodule_path}/__init__.py
+        OUTPUT ${SLANGPY_PACKAGE_DIR}/__init__.pyi
+        DEPENDS slangpy_ext ${SLANGPY_PACKAGE_DIR}/__init__.py
         INCLUDE_PRIVATE # allow us to have functions/variables that start with _
     )
 
-    # Post-process the submodule stub file.
-    postprocess_stub(${SLANGPY_PACKAGE_DIR}/${submodule_path}/__init__.pyi "--submodule")
+    # Post-process the main stub file.
+    postprocess_stub(${SLANGPY_PACKAGE_DIR}/__init__.pyi "")
 
-    # Install the submodule stub file.
-    install(FILES ${SLANGPY_PACKAGE_DIR}/${submodule_path}/__init__.pyi DESTINATION ${CMAKE_INSTALL_BINDIR}/${submodule_path})
+    # Install the main stub file.
+    install(FILES ${SLANGPY_PACKAGE_DIR}/__init__.pyi DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-endforeach()
+    # Generate submodule stub files.
+    foreach(submodule IN ITEMS platform thread math ui tev crashpad renderdoc slangpy)
+        string(REPLACE "." "/" submodule_path ${submodule})
+        nanobind_add_stub(
+            slangpy_${submodule}_stub
+            MODULE slangpy.${submodule}
+            PYTHON_PATH ${SLANGPY_PACKAGE_DIR}/..
+            OUTPUT ${SLANGPY_PACKAGE_DIR}/${submodule_path}/__init__.pyi
+            DEPENDS slangpy_ext ${SLANGPY_PACKAGE_DIR}/${submodule_path}/__init__.py
+            INCLUDE_PRIVATE # allow us to have functions/variables that start with _
+        )
+
+        # Post-process the submodule stub file.
+        postprocess_stub(${SLANGPY_PACKAGE_DIR}/${submodule_path}/__init__.pyi "--submodule")
+
+        # Install the submodule stub file.
+        install(FILES ${SLANGPY_PACKAGE_DIR}/${submodule_path}/__init__.pyi DESTINATION ${CMAKE_INSTALL_BINDIR}/${submodule_path})
+
+    endforeach()
+endif()
 
 set(MKDOC_ARGS "")
 

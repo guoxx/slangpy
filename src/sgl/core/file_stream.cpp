@@ -29,7 +29,7 @@ inline std::string strerror_safe(int errnum)
     strerror_s(buf, sizeof(buf), errnum);
     return buf;
 #elif SGL_LINUX
-#if (_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600) && !_GNU_SOURCE
+#if defined(__ANDROID__) || ((_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600) && !_GNU_SOURCE)
     // XSI strerror_r
     if (strerror_r(errnum, buf, sizeof(buf)) != 0)
         return "Unknown error";
@@ -42,7 +42,7 @@ inline std::string strerror_safe(int errnum)
     if (strerror_r(errnum, buf, sizeof(buf)) != 0)
         return "Unknown error";
     return buf;
-#elif
+#else
 #error "Unsupported platform"
 #endif
 }
