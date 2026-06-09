@@ -360,6 +360,7 @@ target_compile_definitions(sgl
         $<$<PLATFORM_ID:Windows>:IMGUI_API=__declspec\(dllexport\)>
         $<$<PLATFORM_ID:Linux>:IMGUI_API=__attribute__\(\(visibility\("default"\)\)\)>
         $<$<PLATFORM_ID:Darwin>:IMGUI_API=__attribute__\(\(visibility\("default"\)\)\)>
+        $<$<PLATFORM_ID:Android>:IMGUI_API=__attribute__\(\(visibility\("default"\)\)\)>
         # Linux.
         $<$<PLATFORM_ID:Linux>:__USE_LARGEFILE64>
         SGL_PROJECT_DIR="${SGL_PROJECT_DIR}"
@@ -422,6 +423,9 @@ target_link_libraries(sgl
         # $<$<PLATFORM_ID:Linux>:gtk3>
         # macOS system libraries.
         $<$<PLATFORM_ID:Darwin>:sgl_macos_deps>
+        # Android system libraries.
+        $<$<PLATFORM_ID:Android>:log>
+        $<$<PLATFORM_ID:Android>:android>
 )
 
 set_target_properties(sgl PROPERTIES

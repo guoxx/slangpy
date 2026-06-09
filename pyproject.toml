@@ -85,3 +85,19 @@ reportInvalidTypeForm = "warning"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+
+# Android configuration (requires Linux/macOS or WSL2)
+[tool.cibuildwheel.android]
+build = "cp313-*"
+archs = ["arm64_v8a"]
+environment = {ANDROID_API_LEVEL = "33"}
+# Slang does not currently publish prebuilt Android binaries, so the wheel
+# build clones the matching Slang tag and compiles it locally.
+# prepare: fetch source and build host generators (once).
+# build_slang: cross-compile the Android arm64-v8a Slang libraries.
+before-all = "python tools/android_build.py prepare"
+before-build = "python tools/android_build.py build_slang"
+# Disable cibuildwheel's default NumPy xbuild-files mapping. SlangPy does not
+# include NumPy C headers or link NumPy static libraries, and public PyPI does
+# not currently provide official Android NumPy wheels for this target path.
+xbuild-files = ""

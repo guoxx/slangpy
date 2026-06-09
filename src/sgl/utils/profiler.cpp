@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cctype>
 #include <chrono>
 #include <cmath>
@@ -462,7 +463,37 @@ struct ProfilerImpl {
         uint64_t parent_correlation_id{0};
         uint32_t site_id{0};
         uint32_t frame_index{INVALID_INDEX};
-        bool ended{false};
+        std::atomic<bool> ended{false};
+
+        GpuSlot() = default;
+
+        GpuSlot(const GpuSlot& other)
+            : correlation_id(other.correlation_id)
+            , parent_correlation_id(other.parent_correlation_id)
+            , site_id(other.site_id)
+            , frame_index(other.frame_index)
+            , ended(other.ended.load(std::memory_order_relaxed))
+        {
+        }
+
+        GpuSlot(GpuSlot&& other) noexcept
+            : GpuSlot(static_cast<const GpuSlot&>(other))
+        {
+        }
+
+        GpuSlot& operator=(const GpuSlot& other)
+        {
+            if (this == &other)
+                return *this;
+            correlation_id = other.correlation_id;
+            parent_correlation_id = other.parent_correlation_id;
+            site_id = other.site_id;
+            frame_index = other.frame_index;
+            ended.store(other.ended.load(std::memory_order_relaxed), std::memory_order_relaxed);
+            return *this;
+        }
+
+        GpuSlot& operator=(GpuSlot&& other) noexcept { return *this = static_cast<const GpuSlot&>(other); }
     };
 
     struct GpuRecording {
@@ -1165,7 +1196,7 @@ struct ProfilerImpl {
         slot.parent_correlation_id = parent_correlation_id;
         slot.site_id = token.site_id;
         slot.frame_index = token.frame_index;
-        slot.ended = false;
+        slot.ended.store(false, std::memory_order_relaxed);
         encoder->write_timestamp(context->query_pool, index * 2);
         token.gpu_state = context;
         token.gpu_begin_query = index;
@@ -1182,7 +1213,7 @@ struct ProfilerImpl {
             return;
         GpuSlot& slot = context->slots[token.gpu_begin_query];
         token.command_encoder->write_timestamp(context->query_pool, token.gpu_begin_query * 2 + 1);
-        std::atomic_ref(slot.ended).store(true, std::memory_order_release);
+        slot.ended.store(true, std::memory_order_release);
     }
 
     const GpuCalibration& get_gpu_calibration(GpuContext& context)
@@ -1263,7 +1294,7 @@ struct ProfilerImpl {
                     const std::vector<uint64_t> ticks = context.query_pool->get_results(first_query, zone_count * 2);
                     for (uint32_t i = 0; i < zone_count; ++i) {
                         GpuSlot& slot = context.slots[first_slot + i];
-                        if (!std::atomic_ref(slot.ended).load(std::memory_order_acquire))
+                        if (!slot.ended.load(std::memory_order_acquire))
                             continue;
                         StoredZone zone;
                         zone.start_ns = to_ns(ticks[i * 2]);

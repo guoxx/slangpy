@@ -100,6 +100,9 @@ add_library(lmdb STATIC)
 target_include_directories(lmdb INTERFACE lmdb)
 target_sources(lmdb PRIVATE lmdb/mdb.c lmdb/midl.c)
 target_compile_definitions(lmdb PRIVATE _CRT_SECURE_NO_WARNINGS)
+# LMDB 0.9.x detects Android via the ANDROID macro, which the NDK compiler does not define
+# (it only defines __ANDROID__). Without it LMDB enables robust mutexes that bionic lacks.
+target_compile_definitions(lmdb PRIVATE $<$<PLATFORM_ID:Android>:ANDROID>)
 target_compile_options(lmdb PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/wd4333 /wd4172>)
 target_compile_options(lmdb PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:-Wno-deprecated-declarations>)
 

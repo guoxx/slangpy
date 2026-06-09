@@ -75,7 +75,7 @@ public:
 #endif
 #if SGL_HAS_VULKAN
         case DeviceType::vulkan:
-            device_handle = device->native_handles()[0].as<VkInstance>();
+            device_handle = RENDERDOC_DEVICEPOINTER_FROM_VKINSTANCE(device->native_handles()[0].as<VkInstance>());
             break;
 #endif
         default:
@@ -86,7 +86,11 @@ public:
 #if SGL_WINDOWS
         window_handle = window ? window->window_handle().hwnd : nullptr;
 #elif SGL_LINUX
+#if __ANDROID__
+        window_handle = window ? window->window_handle().native_window : nullptr;
+#else
         window_handle = window ? (void*)uintptr_t(window->window_handle().xwindow) : nullptr;
+#endif
 #else
         return false;
 #endif

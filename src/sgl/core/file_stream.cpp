@@ -42,7 +42,7 @@ inline std::string strerror_safe(int errnum)
     if (strerror_r(errnum, buf, sizeof(buf)) != 0)
         return "Unknown error";
     return buf;
-#elif
+#else
 #error "Unsupported platform"
 #endif
 }
