@@ -98,7 +98,7 @@ set_target_properties(slangpy_ext PROPERTIES
 )
 
 if (SGL_ANDROID)
-    target_link_libraries(slangpy_ext PRIVATE ${Python_LIBRARY} android log)
+    target_link_libraries(slangpy_ext PRIVATE Python::Python android log)
 endif()
 
 # Write a .build_dir file to the package directory.

@@ -117,7 +117,11 @@ message(STATUS "Architecture: ${SGL_ARCHITECTURE}")
 # -----------------------------------------------------------------------------
 
 if(SGL_BUILD_PYTHON)
-    find_package(Python 3.9 COMPONENTS Interpreter Development.Module REQUIRED)
+    if(SGL_ANDROID)
+        find_package(Python 3.9 COMPONENTS Interpreter Development.Module Development.Embed REQUIRED)
+    else()
+        find_package(Python 3.9 COMPONENTS Interpreter Development.Module REQUIRED)
+    endif()
 endif()
 
 # -----------------------------------------------------------------------------

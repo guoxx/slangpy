@@ -83,11 +83,11 @@ build = "cp313-*"
 archs = ["arm64_v8a", "x86_64"]
 environment = {ANDROID_API_LEVEL = "33"}
 before-all = "python tools/android_build.py prepare"
-before-build = [
-    "pip install patchelf",
-    "python tools/android_build.py build_slang",
-]
-repair-wheel-command = "python tools/android_build.py repair_wheel -w {dest_dir} {wheel}"
+before-build = "python tools/android_build.py build_slang"
+# Disable cibuildwheel's default NumPy xbuild-files mapping. SlangPy does not
+# include NumPy C headers or link NumPy static libraries, and public PyPI does
+# not currently provide official Android NumPy wheels for this target path.
+xbuild-files = ""
 
 [[tool.cibuildwheel.overrides]]
 select = "*-android_arm64_v8a"

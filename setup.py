@@ -147,34 +147,16 @@ class CMakeBuild(build_ext):
         )
 
         # Remove files that are not needed
-        for file in ["slang-rhi.lib"]:
+        for file in ["slang-rhi.lib", "libslang-rhi.a"]:
             path = extdir / file
             if path.exists():
                 os.remove(path)
 
+        if PLATFORM == "android":
+            self._post_process_android_install(extdir, env)
+
     def _configure_android_build(self, cmake_args: list, env: dict) -> None:
         """Configure CMake arguments and environment for Android builds."""
-        # Remove Python_ROOT_DIR (points to host system, not suitable for cross-compile)
-        cmake_args[:] = [arg for arg in cmake_args if not arg.startswith("-DPython_ROOT_DIR")]
-
-        # Python include/library configuration for Android
-        toolchain_file = os.environ.get("CMAKE_TOOLCHAIN_FILE")
-        assert toolchain_file, "CMAKE_TOOLCHAIN_FILE environment variable is not set!"
-
-        python_prefix = (Path(toolchain_file).parent / "python" / "prefix").resolve()
-
-        # Explicitly find headers and library to bypass FindPython flakiness on Android
-        include_dirs = list(python_prefix.glob("include/python3.*"))
-        if not include_dirs:
-            raise RuntimeError(f"Android Python include directory not found under: {python_prefix}")
-        cmake_args.append(f"-DPython_INCLUDE_DIR={include_dirs[0]}")
-
-        # Check for shared library first, then static
-        libs = list(python_prefix.glob("lib/libpython3.*.so"))
-        if not libs:
-            raise RuntimeError(f"Android Python shared library not found under: {python_prefix}")
-        cmake_args.append(f"-DPython_LIBRARY={libs[0]}")
-
         android_abi = os.environ.get("ANDROID_ABI")
         assert android_abi, "ANDROID_ABI environment variable is not set!"
 
@@ -242,6 +224,35 @@ class CMakeBuild(build_ext):
             f"-DSGL_LOCAL_SLANG_DIR={slang_root}",
             f"-DSGL_LOCAL_SLANG_BUILD_DIR={slang_build_dir}",
         ]
+
+    def _post_process_android_install(self, extdir: Path, env: dict) -> None:
+        """Prepare installed Android libraries for auditwheel repair."""
+        so_files = sorted(extdir.glob("*.so"))
+        if not so_files:
+            raise RuntimeError(f"No Android shared libraries found in install directory: {extdir}")
+
+        patchelf = shutil.which("patchelf")
+        if not patchelf:
+            raise RuntimeError("patchelf is required for Android wheel builds")
+
+        if BUILD_RELEASE_WHEEL:
+            strip = env.get("STRIP")
+            if not strip:
+                raise RuntimeError("STRIP is required for Android release wheel builds")
+            for so_file in so_files:
+                subprocess.run(
+                    [strip, "--strip-debug", str(so_file)],
+                    env=env,
+                    check=True,
+                )
+
+        # Set RUNPATH after stripping because strip can rewrite ELF metadata.
+        for so_file in so_files:
+            subprocess.run(
+                [patchelf, "--set-rpath", "$ORIGIN", str(so_file)],
+                env=env,
+                check=True,
+            )
 
 
 class CustomBuildPy(_build_py):
