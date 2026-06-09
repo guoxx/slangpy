@@ -3,8 +3,7 @@
 #include "platform.h"
 #include "sgl/core/error.h"
 #include "sgl/core/format.h"
-
-#include <GLFW/glfw3.h>
+#include "sgl/core/window.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -25,12 +24,7 @@ void set_python_active(bool active)
 
 float display_scale_factor()
 {
-    float xscale = 1.f;
-    float yscale = 1.f;
-    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
-    if (monitor)
-        glfwGetMonitorContentScale(monitor, &xscale, &yscale);
-    return 0.5f * (xscale + yscale);
+    return Window::display_scale_factor();
 }
 
 // -------------------------------------------------------------------------------------------------

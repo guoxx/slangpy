@@ -22,6 +22,7 @@
 #include <regex>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 
 namespace sgl::platform {
 
@@ -298,7 +299,7 @@ void print_to_debug_window(const char* str)
 StackTrace backtrace(size_t skip_frames)
 {
     uintptr_t raw_trace[1024];
-    int count = ::backtrace(reinterpret_cast<void**>(raw_trace), 1024);
+    size_t count = static_cast<size_t>(::backtrace(reinterpret_cast<void**>(raw_trace), 1024));
     if (skip_frames >= count)
         return {};
     return StackTrace{raw_trace + skip_frames, raw_trace + skip_frames + (count - skip_frames)};

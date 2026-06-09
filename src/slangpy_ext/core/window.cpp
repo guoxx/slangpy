@@ -108,4 +108,13 @@ SGL_PY_EXPORT(core_window)
         nb::arg().none(),
         D(Window, on_drop_files)
     );
+
+#ifdef __ANDROID__
+    window.def_static(
+        "create_android_window",
+        &Window::create_android_window,
+        "native_window_ptr"_a,
+        "Create an Android window from a native window pointer (uintptr_t)"
+    );
+#endif
 }

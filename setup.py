@@ -28,6 +28,8 @@ elif sys.platform.startswith("linux"):
     PLATFORM = "linux"
 elif sys.platform.startswith("darwin"):
     PLATFORM = "macos"
+elif sys.platform.startswith("android"):
+    PLATFORM = "android"
 else:
     raise Exception(f"Unsupported platform: {sys.platform}")
 
@@ -46,6 +48,9 @@ elif PLATFORM == "linux":
     MSVC_PLAT_SPEC = None
 elif PLATFORM == "macos":
     CMAKE_PRESET = "macos-arm64-clang"
+    MSVC_PLAT_SPEC = None
+elif PLATFORM == "android":
+    CMAKE_PRESET = "android-arm64"
     MSVC_PLAT_SPEC = None
 else:
     raise RuntimeError(f"Unsupported platform: {PLATFORM}")
@@ -105,6 +110,9 @@ class CMakeBuild(build_ext):
             "-DSGL_BUILD_TESTS=OFF",
         ]
 
+        if PLATFORM == "android":
+            self._configure_android_build(cmake_args, env)
+
         if BUILD_RELEASE_WHEEL:
             cmake_args += [
                 "-DSGL_PROJECT_DIR=",
@@ -125,10 +133,104 @@ class CMakeBuild(build_ext):
         )
 
         # Remove files that are not needed
-        for file in ["slang-rhi.lib"]:
+        for file in ["slang-rhi.lib", "libslang-rhi.a"]:
             path = extdir / file
             if path.exists():
                 os.remove(path)
+
+        if PLATFORM == "android":
+            self._post_process_android_install(extdir, env)
+
+    def _configure_android_build(self, cmake_args: list, env: dict) -> None:
+        """Configure CMake arguments and environment for Android builds."""
+        # Debug flags sanitization
+        if CMAKE_CONFIG == "Debug":
+
+            def _sanitize_android_debug_flags(flags: str) -> str:
+                tokens = flags.split()
+                tokens = [t for t in tokens if t != "-DNDEBUG"]
+                tokens = ["-O0" if t == "-O3" else t for t in tokens]
+                return " ".join(tokens)
+
+            before_cflags = env.get("CFLAGS", "")
+            before_cxxflags = env.get("CXXFLAGS", "")
+            env["CFLAGS"] = _sanitize_android_debug_flags(before_cflags)
+            env["CXXFLAGS"] = _sanitize_android_debug_flags(before_cxxflags)
+            if env["CFLAGS"] != before_cflags:
+                print(
+                    f"[setup.py] Android Debug: sanitized CFLAGS: '{before_cflags}' -> '{env['CFLAGS']}'"
+                )
+            if env["CXXFLAGS"] != before_cxxflags:
+                print(
+                    f"[setup.py] Android Debug: sanitized CXXFLAGS: '{before_cxxflags}' -> '{env['CXXFLAGS']}'"
+                )
+
+        # WSL path mapping for debug info
+        is_wsl = shutil.which("wslpath") is not None
+        if is_wsl:
+            print("[setup.py] WSL detected, attempting path mapping for debug info...")
+            try:
+                wsl_src = str(SOURCE_DIR)
+                win_src = (
+                    subprocess.check_output(["wslpath", "-m", wsl_src]).decode("utf-8").strip()
+                    if shutil.which("wslpath")
+                    else wsl_src
+                )
+                print(f"[setup.py] Path mapping: '{wsl_src}' -> '{win_src}'")
+                if win_src != wsl_src:
+                    flag = f"-fdebug-prefix-map={wsl_src}={win_src}"
+                    env["CFLAGS"] = env.get("CFLAGS", "") + f" {flag}"
+                    env["CXXFLAGS"] = env.get("CXXFLAGS", "") + f" {flag}"
+                    print(f"[setup.py] Added to CFLAGS/CXXFLAGS: {flag}")
+            except Exception as e:
+                print(f"[setup.py] Failed to setup WSL path mapping: {e}")
+
+        # Setup local slang
+        slang_dir = os.environ.get("SGL_LOCAL_SLANG_DIR", "").strip()
+        if slang_dir:
+            slang_root = Path(slang_dir).expanduser()
+            if not slang_root.is_absolute():
+                slang_root = SOURCE_DIR / slang_root
+            slang_root = slang_root.resolve()
+        else:
+            slang_root = (SOURCE_DIR / "build" / "android-slang-src").resolve()
+
+        slang_build_dir = f"build-android-arm64-v8a/{CMAKE_CONFIG}"
+
+        cmake_args += [
+            "-DSGL_LOCAL_SLANG=ON",
+            f"-DSGL_LOCAL_SLANG_DIR={slang_root}",
+            f"-DSGL_LOCAL_SLANG_BUILD_DIR={slang_build_dir}",
+        ]
+
+    def _post_process_android_install(self, extdir: Path, env: dict) -> None:
+        """Prepare installed Android libraries for auditwheel repair."""
+        so_files = sorted(extdir.glob("*.so"))
+        if not so_files:
+            raise RuntimeError(f"No Android shared libraries found in install directory: {extdir}")
+
+        patchelf = shutil.which("patchelf")
+        if not patchelf:
+            raise RuntimeError("patchelf is required for Android wheel builds")
+
+        if BUILD_RELEASE_WHEEL:
+            strip = env.get("STRIP")
+            if not strip:
+                raise RuntimeError("STRIP is required for Android release wheel builds")
+            for so_file in so_files:
+                subprocess.run(
+                    [strip, "--strip-debug", str(so_file)],
+                    env=env,
+                    check=True,
+                )
+
+        # Set RUNPATH after stripping because strip can rewrite ELF metadata.
+        for so_file in so_files:
+            subprocess.run(
+                [patchelf, "--set-rpath", "$ORIGIN", str(so_file)],
+                env=env,
+                check=True,
+            )
 
 
 class CustomBuildPy(_build_py):

@@ -21,14 +21,22 @@ SGL_DECLARE_HANDLE(HWND);
 #undef SGL_DECLARE_HANDLE
 #endif
 
+#ifdef __ANDROID__
+struct ANativeWindow;
+#endif
+
 namespace sgl {
 /// Native window handle.
 struct WindowHandle {
 #if SGL_WINDOWS
     HWND hwnd;
 #elif SGL_LINUX
+#if __ANDROID__
+    ::ANativeWindow* native_window;
+#else
     void* xdisplay;
     uint32_t xwindow;
+#endif
 #elif SGL_MACOS
     void* nswindow;
 #endif

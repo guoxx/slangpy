@@ -4,6 +4,8 @@
 #include "sgl/core/config.h"
 #include "sgl/core/error.h"
 
+#ifndef __ANDROID__
+
 #if SGL_HAS_VULKAN
 #define GLFW_INCLUDE_VULKAN
 #endif
@@ -399,6 +401,16 @@ Window::Window(WindowDesc desc)
     glfwSetDropCallback(m_window, &EventHandlers::handle_drop);
 }
 
+float Window::display_scale_factor()
+{
+    float xscale = 1.f;
+    float yscale = 1.f;
+    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+    if (monitor)
+        glfwGetMonitorContentScale(monitor, &xscale, &yscale);
+    return 0.5f * (xscale + yscale);
+}
+
 Window::~Window()
 {
     for (GLFWcursor* cursor : m_cursor_cache)
@@ -694,3 +706,5 @@ void Window::handle_drop_files(std::span<const char*> files)
 }
 
 } // namespace sgl
+
+#endif

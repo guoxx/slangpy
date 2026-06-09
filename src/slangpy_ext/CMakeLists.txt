@@ -109,6 +109,10 @@ set_target_properties(slangpy_ext PROPERTIES
     PDB_OUTPUT_DIRECTORY_RELWITHDEBINFO ${SLANGPY_PACKAGE_DIR}
 )
 
+if (SGL_ANDROID)
+    target_link_libraries(slangpy_ext PRIVATE Python::Python android log)
+endif()
+
 # Write a .build_dir file to the package directory.
 # This is used by __init__.py to setup the correct DLL path in development mode.
 add_custom_target(
@@ -133,7 +137,8 @@ endfunction()
 # Stub generation imports the extension into an unsanitized Python host. The
 # required sanitizer runtime preload is not portable across the Clang runtime
 # layouts used by our CI platforms, so retain the checked-in stubs instead.
-if(NOT SGL_ENABLE_ASAN AND NOT SGL_ENABLE_UBSAN)
+# Also skip on Android as the cross-compiled .so cannot be loaded on the host.
+if(NOT SGL_ANDROID AND NOT SGL_ENABLE_ASAN AND NOT SGL_ENABLE_UBSAN)
     # Generate main stub file.
     nanobind_add_stub(
         slangpy_stub
