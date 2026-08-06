@@ -292,6 +292,7 @@ class SGL_API Buffer : public Resource {
     SGL_OBJECT(Buffer)
 public:
     Buffer(ref<Device> device, BufferDesc desc);
+    Buffer(ref<Device> device, NativeHandle handle, BufferDesc desc);
 
     ~Buffer();
 

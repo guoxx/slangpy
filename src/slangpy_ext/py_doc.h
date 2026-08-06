@@ -2903,6 +2903,23 @@ Parameter ``data_size``:
 Returns:
     New buffer object.)doc";
 
+static const char *__doc_sgl_Device_create_buffer_from_native_handle =
+R"doc(Create a buffer wrapper from a native buffer handle.
+
+The handle must belong to this device.
+The caller must keep the native resource valid while the wrapper exists.
+This is required on backends that do not retain the native resource.
+The descriptor size and usage must match the native buffer.
+
+Parameter ``handle``:
+    Native buffer handle.
+
+Parameter ``desc``:
+    Buffer descriptor matching the native buffer.
+
+Returns:
+    New non-owning buffer wrapper.)doc";
+
 static const char *__doc_sgl_Device_create_buffer_view = R"doc(Create a new buffer view.)doc";
 
 static const char *__doc_sgl_Device_create_command_encoder = R"doc(Create a command encoder.)doc";

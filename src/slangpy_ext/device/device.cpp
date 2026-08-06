@@ -158,9 +158,8 @@ inline void convert_coop_vec_matrix_ndarray(
     device->convert_coop_vec_matrix(dst.data(), dst.nbytes(), dst_desc, src.data(), src.nbytes(), src_desc);
 }
 
-/// Helper for create_buffer kwargs binding (shared by Device and free-standing).
-static ref<Buffer> create_buffer_from_kwargs(
-    Device* device,
+/// Helper for buffer kwargs binding.
+static BufferDesc buffer_desc_from_kwargs(
     size_t size,
     size_t element_count,
     size_t struct_size,
@@ -202,7 +201,7 @@ static ref<Buffer> create_buffer_from_kwargs(
         }
     }
 
-    return device->create_buffer({
+    return {
         .size = size,
         .element_count = element_count,
         .struct_size = struct_size,
@@ -214,7 +213,7 @@ static ref<Buffer> create_buffer_from_kwargs(
         .label = std::move(label),
         .data = data ? data->data() : nullptr,
         .data_size = data ? data->nbytes() : 0,
-    });
+    };
 }
 
 /// Helper for create_texture kwargs binding (shared by Device and free-standing).
@@ -656,8 +655,7 @@ SGL_PY_EXPORT(device_device)
            std::string label,
            std::optional<nb::ndarray<nb::numpy>> data)
         {
-            return create_buffer_from_kwargs(
-                self,
+            return self->create_buffer(buffer_desc_from_kwargs(
                 size,
                 element_count,
                 struct_size,
@@ -668,7 +666,7 @@ SGL_PY_EXPORT(device_device)
                 default_state,
                 std::move(label),
                 std::move(data)
-            );
+            ));
         },
         "size"_a = BufferDesc().size,
         "element_count"_a = BufferDesc().element_count,
@@ -683,6 +681,47 @@ SGL_PY_EXPORT(device_device)
         D(Device, create_buffer)
     );
     device.def("create_buffer", &Device::create_buffer, "desc"_a, D(Device, create_buffer));
+
+    device.def(
+        "create_buffer_from_native_handle",
+        [](Device* self,
+           NativeHandle handle,
+           size_t size,
+           size_t element_count,
+           size_t struct_size,
+           nb::object resource_type_layout,
+           Format format,
+           MemoryType memory_type,
+           BufferUsage usage,
+           ResourceState default_state,
+           std::string label)
+        {
+            BufferDesc desc = buffer_desc_from_kwargs(
+                size,
+                element_count,
+                struct_size,
+                std::move(resource_type_layout),
+                format,
+                memory_type,
+                usage,
+                default_state,
+                std::move(label),
+                std::nullopt
+            );
+            return self->create_buffer_from_native_handle(handle, std::move(desc));
+        },
+        "handle"_a,
+        "size"_a = BufferDesc().size,
+        "element_count"_a = BufferDesc().element_count,
+        "struct_size"_a = BufferDesc().struct_size,
+        "resource_type_layout"_a.none() = nb::none(),
+        "format"_a = BufferDesc().format,
+        "memory_type"_a = BufferDesc().memory_type,
+        "usage"_a = BufferDesc().usage,
+        "default_state"_a = BufferDesc().default_state,
+        "label"_a = BufferDesc().label,
+        D(Device, create_buffer_from_native_handle)
+    );
 
     device.def(
         "create_texture",
@@ -1264,8 +1303,7 @@ SGL_PY_EXPORT(device_device)
            std::string label,
            std::optional<nb::ndarray<nb::numpy>> data)
         {
-            return create_buffer_from_kwargs(
-                current_device(),
+            return current_device()->create_buffer(buffer_desc_from_kwargs(
                 size,
                 element_count,
                 struct_size,
@@ -1276,7 +1314,7 @@ SGL_PY_EXPORT(device_device)
                 default_state,
                 std::move(label),
                 std::move(data)
-            );
+            ));
         },
         "size"_a = BufferDesc().size,
         "element_count"_a = BufferDesc().element_count,

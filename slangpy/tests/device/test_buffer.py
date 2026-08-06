@@ -8,6 +8,41 @@ import slangpy as spy
 from slangpy.testing import helpers
 
 
+@pytest.mark.parametrize("device_type", [spy.DeviceType.d3d12, spy.DeviceType.vulkan])
+def test_buffer_from_native_handle_is_non_owning(device_type: spy.DeviceType) -> None:
+    device = helpers.get_device(device_type)
+    usage = spy.BufferUsage.shader_resource | spy.BufferUsage.unordered_access
+    initial = np.arange(16, dtype=np.uint32)
+    original = device.create_buffer(data=initial, usage=usage)
+
+    imported = device.create_buffer_from_native_handle(
+        original.native_handle,
+        size=initial.nbytes,
+        usage=usage,
+    )
+    assert np.array_equal(imported.to_numpy().view(np.uint32), initial)
+
+    imported = None
+    device.wait_for_idle()
+
+    updated = initial + 1
+    original.copy_from_numpy(updated)
+    assert np.array_equal(original.to_numpy().view(np.uint32), updated)
+
+
+def test_vulkan_imported_buffer_has_no_shared_handle() -> None:
+    device = helpers.get_device(spy.DeviceType.vulkan)
+    usage = spy.BufferUsage.shader_resource | spy.BufferUsage.unordered_access
+    original = device.create_buffer(size=64, usage=usage)
+    imported = device.create_buffer_from_native_handle(
+        original.native_handle,
+        size=original.size,
+        usage=usage,
+    )
+
+    assert not imported.shared_handle
+
+
 @pytest.mark.parametrize("device_type", helpers.DEFAULT_DEVICE_TYPES)
 def test_buffer_init_data(device_type: spy.DeviceType):
     device = helpers.get_device(device_type)

@@ -366,6 +366,20 @@ public:
      */
     ref<Buffer> create_buffer(BufferDesc desc);
 
+    /**
+     * \brief Create a buffer wrapper from a native buffer handle.
+     *
+     * The handle must belong to this device.
+     * The caller must keep the native resource valid while the wrapper exists.
+     * This is required on backends that do not retain the native resource.
+     * The descriptor size and usage must match the native buffer.
+     *
+     * \param handle Native buffer handle.
+     * \param desc Buffer descriptor matching the native buffer.
+     * \return New non-owning buffer wrapper.
+     */
+    ref<Buffer> create_buffer_from_native_handle(NativeHandle handle, BufferDesc desc);
+
     /// Create a new buffer view.
     ref<BufferView> create_buffer_view(Buffer* buffer, BufferViewDesc desc);
 
